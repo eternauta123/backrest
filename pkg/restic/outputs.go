@@ -351,3 +351,100 @@ type RepoConfig struct {
 	Id                string `json:"id"`
 	ChunkerPolynomial string `json:"chunker_polynomial"`
 }
+
+type DiffEntry struct {
+	Type     string `json:"message_type"`
+	Path     string `json:"path"`
+	Modifier string `json:"modifier"`
+}
+
+func (e *DiffEntry) ToProto() *v1.DiffEntry {
+	return &v1.DiffEntry{
+		Path:     e.Path,
+		Modifier: e.Modifier,
+	}
+}
+
+type DiffStatsDetails struct {
+	Files     int32 `json:"files"`
+	Dirs      int32 `json:"dirs"`
+	Others    int32 `json:"others"`
+	DataBlobs int32 `json:"data_blobs"`
+	TreeBlobs int32 `json:"tree_blobs"`
+	Bytes     int64 `json:"bytes"`
+}
+
+func (e *DiffStatsDetails) ToProto() *v1.DiffStatsDetails {
+	return &v1.DiffStatsDetails{
+		Files:     e.Files,
+		Dirs:      e.Dirs,
+		Others:    e.Others,
+		DataBlobs: e.DataBlobs,
+		TreeBlobs: e.TreeBlobs,
+		Bytes:     e.Bytes,
+	}
+}
+
+type DiffStatistics struct {
+	Type           string           `json:"message_type"`
+	SourceSnapshot string           `json:"source_snapshot"`
+	TargetSnapshot string           `json:"target_snapshot"`
+	ChangedFiles   int32            `json:"changed_files"`
+	Added          DiffStatsDetails `json:"added"`
+	Removed        DiffStatsDetails `json:"removed"`
+}
+
+func (e *DiffStatistics) ToProto() *v1.DiffStatistics {
+	return &v1.DiffStatistics{
+		SourceSnapshot: e.SourceSnapshot,
+		TargetSnapshot: e.TargetSnapshot,
+		ChangedFiles:   e.ChangedFiles,
+		Added:          e.Added.ToProto(),
+		Removed:        e.Removed.ToProto(),
+	}
+}
+
+type typeProbe struct {
+	Type string `json:"message_type"`
+}
+
+func readDiff(output io.Reader) (*v1.DiffStatistics, []*DiffEntry, error) {
+	scanner := bufio.NewScanner(output)
+	scanner.Split(bufio.ScanLines)
+
+	// if !scanner.Scan() {
+	// 	return nil, nil, fmt.Errorf("failed to read first line.")
+	// }
+
+	var entries []*DiffEntry
+	var stats *v1.DiffStatistics
+	for scanner.Scan() {
+		raw := scanner.Bytes()
+
+		// First: detect which kind of object this line contains
+		var probe typeProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			return nil, nil, fmt.Errorf("failed to detect type: %w", err)
+		}
+
+		switch probe.Type {
+
+		case "statistics":
+			// Decode into your summary struct
+			var statDiff v1.DiffStatistics
+			if err := json.Unmarshal(raw, &statDiff); err != nil {
+				return nil, nil, fmt.Errorf("failed to decode statistics: %w", err)
+			}
+			stats = &statDiff
+
+		default:
+			// Decode as DiffEntry
+			var entry DiffEntry
+			if err := json.Unmarshal(raw, &entry); err != nil {
+				return nil, nil, fmt.Errorf("failed to decode entry: %w", err)
+			}
+			entries = append(entries, &entry)
+		}
+	}
+	return stats, entries, nil
+}

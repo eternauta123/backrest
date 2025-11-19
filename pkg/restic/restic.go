@@ -17,6 +17,7 @@ import (
 
 	"github.com/djherbis/buffer"
 	nio "github.com/djherbis/nio/v3"
+	v1 "github.com/garethgeorge/backrest/gen/go/v1"
 	"github.com/garethgeorge/backrest/internal/ioutil"
 	"github.com/garethgeorge/backrest/internal/platformutil"
 	"go.uber.org/zap"
@@ -445,6 +446,26 @@ func (r *Repo) ListDirectory(ctx context.Context, snapshot string, path string, 
 		return nil, nil, errorCollector.AddCmdOutputToError(cmd, fmt.Errorf("error parsing JSON: %w", err))
 	}
 	return snap, entries, nil
+}
+func (r *Repo) RunDiffCommand(ctx context.Context, snapshotID string, prevSnapshotID string, json bool, opts ...GenericOption) (*v1.DiffStatistics, []*DiffEntry, error) {
+	if snapshotID == "" || prevSnapshotID == "" {
+		return nil, nil, errors.New("snapshot and previous snapshot must not be empty")
+	}
+	//TODO: Check if snapshopts exist
+
+	cmd := r.commandWithContext(ctx, []string{"diff", prevSnapshotID, snapshotID, "--json"}, opts...)
+	errorCollector := errorMessageCollector{}
+	output := bytes.NewBuffer(nil)
+	r.handleOutput(cmd, withStdOutTo(output), withAllTo(&errorCollector), withLogWriterFromContext(ctx))
+	if err := cmd.Run(); err != nil {
+		return nil, nil, errorCollector.AddCmdOutputToError(cmd, fmt.Errorf("error running diff: %w", err))
+	}
+
+	stats, entries, err := readDiff(output)
+	if err != nil {
+		return nil, nil, errorCollector.AddCmdOutputToError(cmd, fmt.Errorf("error parsing JSON: %w", err))
+	}
+	return stats, entries, nil
 }
 
 func (r *Repo) Unlock(ctx context.Context, opts ...GenericOption) error {

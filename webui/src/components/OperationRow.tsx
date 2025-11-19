@@ -22,6 +22,7 @@ import {
   SnapshotSummary,
 } from "../../gen/ts/v1/restic_pb";
 import { SnapshotBrowser } from "./SnapshotBrowser";
+import { SnapshotDeltasBrowser } from "./SnapshotDeltasBrowser";
 import {
   formatBytes,
   formatDuration,
@@ -36,6 +37,7 @@ import { useShowModal } from "./ModalManager";
 import { useAlertApi } from "./Alerts";
 import {
   displayTypeToString,
+  FlowDisplayInfo,
   getTypeForDisplay,
   nameForStatus,
 } from "../state/flowdisplayaggregator";
@@ -51,12 +53,14 @@ export const OperationRow = ({
   showPlan,
   hookOperations,
   showDelete,
+  backups
 }: React.PropsWithoutRef<{
   operation: Operation;
   alertApi?: MessageInstance;
   showPlan?: boolean;
   hookOperations?: Operation[];
   showDelete?: boolean;
+  backups?: FlowDisplayInfo[] 
 }>) => {
   const showModal = useShowModal();
   const displayType = getTypeForDisplay(operation);
@@ -232,8 +236,23 @@ export const OperationRow = ({
           repoGuid={operation.repoGuid}
           planId={operation.planId}
         />
-      ),
+      ),      
     });
+//    if (backups && backups?.length >0){
+      bodyItems.push({
+      key: "deltasBrowser",
+      label: "Snapshot Deltas Browser",
+      children: (
+        <SnapshotDeltasBrowser
+          snapshotId={snapshotOp.snapshot!.id}
+          repoId={operation.repoId}
+          planId={operation.planId}
+          backups={backups}
+        />
+      ),  
+    });
+  //  }
+
   } else if (operation.op.case === "operationForget") {
     const forgetOp = operation.op.value;
     bodyItems.push({

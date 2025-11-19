@@ -41,6 +41,7 @@ const (
 	Backrest_ClearHistory_FullMethodName        = "/v1.Backrest/ClearHistory"
 	Backrest_PathAutocomplete_FullMethodName    = "/v1.Backrest/PathAutocomplete"
 	Backrest_GetSummaryDashboard_FullMethodName = "/v1.Backrest/GetSummaryDashboard"
+	Backrest_GetSnapshotsDiff_FullMethodName    = "/v1.Backrest/GetSnapshotsDiff"
 )
 
 // BackrestClient is the client API for Backrest service.
@@ -78,6 +79,8 @@ type BackrestClient interface {
 	PathAutocomplete(ctx context.Context, in *types.StringValue, opts ...grpc.CallOption) (*types.StringList, error)
 	// GetSummaryDashboard returns data for the dashboard view.
 	GetSummaryDashboard(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SummaryDashboardResponse, error)
+	// Get snapshots diff command return in Json format
+	GetSnapshotsDiff(ctx context.Context, in *SnapshotDiffRequest, opts ...grpc.CallOption) (*DiffSnapshotResponse, error)
 }
 
 type backrestClient struct {
@@ -306,6 +309,16 @@ func (c *backrestClient) GetSummaryDashboard(ctx context.Context, in *emptypb.Em
 	return out, nil
 }
 
+func (c *backrestClient) GetSnapshotsDiff(ctx context.Context, in *SnapshotDiffRequest, opts ...grpc.CallOption) (*DiffSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DiffSnapshotResponse)
+	err := c.cc.Invoke(ctx, Backrest_GetSnapshotsDiff_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BackrestServer is the server API for Backrest service.
 // All implementations must embed UnimplementedBackrestServer
 // for forward compatibility.
@@ -341,6 +354,8 @@ type BackrestServer interface {
 	PathAutocomplete(context.Context, *types.StringValue) (*types.StringList, error)
 	// GetSummaryDashboard returns data for the dashboard view.
 	GetSummaryDashboard(context.Context, *emptypb.Empty) (*SummaryDashboardResponse, error)
+	// Get snapshots diff command return in Json format
+	GetSnapshotsDiff(context.Context, *SnapshotDiffRequest) (*DiffSnapshotResponse, error)
 	mustEmbedUnimplementedBackrestServer()
 }
 
@@ -410,6 +425,9 @@ func (UnimplementedBackrestServer) PathAutocomplete(context.Context, *types.Stri
 }
 func (UnimplementedBackrestServer) GetSummaryDashboard(context.Context, *emptypb.Empty) (*SummaryDashboardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSummaryDashboard not implemented")
+}
+func (UnimplementedBackrestServer) GetSnapshotsDiff(context.Context, *SnapshotDiffRequest) (*DiffSnapshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSnapshotsDiff not implemented")
 }
 func (UnimplementedBackrestServer) mustEmbedUnimplementedBackrestServer() {}
 func (UnimplementedBackrestServer) testEmbeddedByValue()                  {}
@@ -778,6 +796,24 @@ func _Backrest_GetSummaryDashboard_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Backrest_GetSnapshotsDiff_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SnapshotDiffRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackrestServer).GetSnapshotsDiff(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Backrest_GetSnapshotsDiff_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackrestServer).GetSnapshotsDiff(ctx, req.(*SnapshotDiffRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Backrest_ServiceDesc is the grpc.ServiceDesc for Backrest service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -856,6 +892,10 @@ var Backrest_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSummaryDashboard",
 			Handler:    _Backrest_GetSummaryDashboard_Handler,
+		},
+		{
+			MethodName: "GetSnapshotsDiff",
+			Handler:    _Backrest_GetSnapshotsDiff_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

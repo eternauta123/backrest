@@ -201,6 +201,21 @@ func (r *RepoOrchestrator) ListSnapshotFiles(ctx context.Context, snapshotId str
 	return lsEnts, nil
 }
 
+func (r *RepoOrchestrator) GetSnapshotsDiff(ctx context.Context, snapshotId string, prevSnapshotId string) (*v1.DiffStatistics, []*v1.DiffEntry, error) {
+	ctx, flush := forwardResticLogs(ctx)
+	defer flush()
+	stats, entries, err := r.repo.RunDiffCommand(ctx, snapshotId, prevSnapshotId, true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get diff: %w", err)
+	}
+
+	diffEntries := make([]*v1.DiffEntry, 0, len(entries))
+	for _, entry := range entries {
+		diffEntries = append(diffEntries, entry.ToProto())
+	}
+	return stats, diffEntries, nil
+}
+
 func (r *RepoOrchestrator) Forget(ctx context.Context, plan *v1.Plan, tags []string) ([]*v1.ResticSnapshot, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

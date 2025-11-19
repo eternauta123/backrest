@@ -80,6 +80,9 @@ const (
 	// BackrestGetSummaryDashboardProcedure is the fully-qualified name of the Backrest's
 	// GetSummaryDashboard RPC.
 	BackrestGetSummaryDashboardProcedure = "/v1.Backrest/GetSummaryDashboard"
+	// BackrestGetSnapshotsDiffProcedure is the fully-qualified name of the Backrest's GetSnapshotsDiff
+	// RPC.
+	BackrestGetSnapshotsDiffProcedure = "/v1.Backrest/GetSnapshotsDiff"
 )
 
 // BackrestClient is a client for the v1.Backrest service.
@@ -115,6 +118,8 @@ type BackrestClient interface {
 	PathAutocomplete(context.Context, *connect.Request[types.StringValue]) (*connect.Response[types.StringList], error)
 	// GetSummaryDashboard returns data for the dashboard view.
 	GetSummaryDashboard(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.SummaryDashboardResponse], error)
+	// Get snapshots diff command return in Json format
+	GetSnapshotsDiff(context.Context, *connect.Request[v1.SnapshotDiffRequest]) (*connect.Response[v1.DiffSnapshotResponse], error)
 }
 
 // NewBackrestClient constructs a client for the v1.Backrest service. By default, it uses the
@@ -248,6 +253,12 @@ func NewBackrestClient(httpClient connect.HTTPClient, baseURL string, opts ...co
 			connect.WithSchema(backrestMethods.ByName("GetSummaryDashboard")),
 			connect.WithClientOptions(opts...),
 		),
+		getSnapshotsDiff: connect.NewClient[v1.SnapshotDiffRequest, v1.DiffSnapshotResponse](
+			httpClient,
+			baseURL+BackrestGetSnapshotsDiffProcedure,
+			connect.WithSchema(backrestMethods.ByName("GetSnapshotsDiff")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -273,6 +284,7 @@ type backrestClient struct {
 	clearHistory        *connect.Client[v1.ClearHistoryRequest, emptypb.Empty]
 	pathAutocomplete    *connect.Client[types.StringValue, types.StringList]
 	getSummaryDashboard *connect.Client[emptypb.Empty, v1.SummaryDashboardResponse]
+	getSnapshotsDiff    *connect.Client[v1.SnapshotDiffRequest, v1.DiffSnapshotResponse]
 }
 
 // GetConfig calls v1.Backrest.GetConfig.
@@ -375,6 +387,11 @@ func (c *backrestClient) GetSummaryDashboard(ctx context.Context, req *connect.R
 	return c.getSummaryDashboard.CallUnary(ctx, req)
 }
 
+// GetSnapshotsDiff calls v1.Backrest.GetSnapshotsDiff.
+func (c *backrestClient) GetSnapshotsDiff(ctx context.Context, req *connect.Request[v1.SnapshotDiffRequest]) (*connect.Response[v1.DiffSnapshotResponse], error) {
+	return c.getSnapshotsDiff.CallUnary(ctx, req)
+}
+
 // BackrestHandler is an implementation of the v1.Backrest service.
 type BackrestHandler interface {
 	GetConfig(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.Config], error)
@@ -408,6 +425,8 @@ type BackrestHandler interface {
 	PathAutocomplete(context.Context, *connect.Request[types.StringValue]) (*connect.Response[types.StringList], error)
 	// GetSummaryDashboard returns data for the dashboard view.
 	GetSummaryDashboard(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.SummaryDashboardResponse], error)
+	// Get snapshots diff command return in Json format
+	GetSnapshotsDiff(context.Context, *connect.Request[v1.SnapshotDiffRequest]) (*connect.Response[v1.DiffSnapshotResponse], error)
 }
 
 // NewBackrestHandler builds an HTTP handler from the service implementation. It returns the path on
@@ -537,6 +556,12 @@ func NewBackrestHandler(svc BackrestHandler, opts ...connect.HandlerOption) (str
 		connect.WithSchema(backrestMethods.ByName("GetSummaryDashboard")),
 		connect.WithHandlerOptions(opts...),
 	)
+	backrestGetSnapshotsDiffHandler := connect.NewUnaryHandler(
+		BackrestGetSnapshotsDiffProcedure,
+		svc.GetSnapshotsDiff,
+		connect.WithSchema(backrestMethods.ByName("GetSnapshotsDiff")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/v1.Backrest/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BackrestGetConfigProcedure:
@@ -579,6 +604,8 @@ func NewBackrestHandler(svc BackrestHandler, opts ...connect.HandlerOption) (str
 			backrestPathAutocompleteHandler.ServeHTTP(w, r)
 		case BackrestGetSummaryDashboardProcedure:
 			backrestGetSummaryDashboardHandler.ServeHTTP(w, r)
+		case BackrestGetSnapshotsDiffProcedure:
+			backrestGetSnapshotsDiffHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -666,4 +693,8 @@ func (UnimplementedBackrestHandler) PathAutocomplete(context.Context, *connect.R
 
 func (UnimplementedBackrestHandler) GetSummaryDashboard(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.SummaryDashboardResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("v1.Backrest.GetSummaryDashboard is not implemented"))
+}
+
+func (UnimplementedBackrestHandler) GetSnapshotsDiff(context.Context, *connect.Request[v1.SnapshotDiffRequest]) (*connect.Response[v1.DiffSnapshotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("v1.Backrest.GetSnapshotsDiff is not implemented"))
 }

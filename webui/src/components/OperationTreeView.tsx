@@ -62,6 +62,7 @@ export const OperationTreeView = ({
   const setScreenWidth = useState(window.innerWidth)[1];
   const [backups, setBackups] = useState<FlowDisplayInfo[]>([]);
   const [selectedBackupId, setSelectedBackupId] = useState<bigint | null>(null);
+  const [selectedBackupTime, setSelectedBackupTime] = useState<number>(0);
 
   // track the screen width so we can switch between mobile and desktop layouts.
   useEffect(() => {
@@ -77,6 +78,7 @@ export const OperationTreeView = ({
   // track backups for this operation tree view.
   useEffect(() => {
     setSelectedBackupId(null);
+    setSelectedBackupTime(0);
 
     const logState = new OplogState((op) => !shouldHideOperation(op));
 
@@ -137,6 +139,7 @@ export const OperationTreeView = ({
         isPlanView={isPlanView}
         onSelect={(flow) => {
           setSelectedBackupId(flow ? flow.flowID : null);
+          setSelectedBackupTime(flow ? flow.displayTime:0 );
         }}
       />
     );
@@ -173,10 +176,12 @@ export const OperationTreeView = ({
           footer={null}
           onCancel={() => {
             setSelectedBackupId(null);
+            setSelectedBackupTime(0);
           }}
           width="60vw"
         >
-          <BackupView backup={backup} />
+          <BackupView backup={backup} 
+                      backups={backups.filter((b) => b.flowID !== backup?.flowID && b.displayTime < selectedBackupTime )} />
         </Modal>
         {allTrees}
       </>
@@ -194,6 +199,7 @@ export const OperationTreeView = ({
             {selectedBackupId ? (
               <BackupView
                 backup={backups.find((b) => b.flowID === selectedBackupId)}
+                backups={backups.filter((b) => b.flowID !== selectedBackupId && b.displayTime < selectedBackupTime )}
               />
             ) : null}
           </BackupViewContainer>{" "}
@@ -588,7 +594,7 @@ const BackupViewContainer = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const BackupView = ({ backup }: { backup?: FlowDisplayInfo }) => {
+const BackupView = ({ backup , backups }: { backup?: FlowDisplayInfo ,backups?: FlowDisplayInfo[] }) => {
   const alertApi = useAlertApi();
   if (!backup) {
     return <Empty description="Backup not found." />;
@@ -664,6 +670,7 @@ const BackupView = ({ backup }: { backup?: FlowDisplayInfo }) => {
         <OperationListView
           key={backup.flowID}
           useOperations={backup.operations}
+          backups={backups}
         />
       </div>
     );

@@ -333,6 +333,53 @@ func (s *BackrestHandler) ListSnapshotFiles(ctx context.Context, req *connect.Re
 	}), nil
 }
 
+func (s *BackrestHandler) GetSnapshotsDiff(ctx context.Context, req *connect.Request[v1.SnapshotDiffRequest]) (*connect.Response[v1.DiffSnapshotResponse], error) {
+	query := req.Msg
+	if query.RepoId == "" {
+		return nil, fmt.Errorf("repo is mandatory")
+	}
+	if query.PlanId == "" {
+		return nil, fmt.Errorf("plan is mandatory")
+	}
+
+	repo, err := s.orchestrator.GetRepoOrchestrator(query.RepoId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repo: %w", err)
+	}
+	//TODO:
+	// Check if it is really needed to check snapshots ids. Diff will fail if repos not found anyway
+	var snapshots []*restic.Snapshot
+	var plan *v1.Plan
+	plan, err = s.orchestrator.GetPlan(query.PlanId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plan %q: %w", query.PlanId, err)
+	}
+	snapshots, err = repo.SnapshotsForPlan(ctx, plan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list snapshots: %w", err)
+	}
+
+	var stats *v1.DiffStatistics
+	var diffEntries []*v1.DiffEntry
+	var found = 0
+	for _, snapshot := range snapshots {
+		if snapshot.Id == query.SnapshotId || snapshot.Id == query.PrevSnapshotId {
+			found = found + 1
+			if found == 2 {
+				stats, diffEntries, err = repo.GetSnapshotsDiff(ctx, query.SnapshotId, query.PrevSnapshotId)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get snapshots diff : %w", err)
+				}
+			}
+		}
+	}
+	if found < 2 {
+		return nil, fmt.Errorf("failed to get the requested the snapshots")
+	}
+
+	return connect.NewResponse(&v1.DiffSnapshotResponse{Statistics: stats, Entries: diffEntries}), nil
+}
+
 // GetOperationEvents implements GET /v1/events/operations
 func (s *BackrestHandler) GetOperationEvents(ctx context.Context, req *connect.Request[emptypb.Empty], resp *connect.ServerStream[v1.OperationEvent]) error {
 	errChan := make(chan error, 1)
