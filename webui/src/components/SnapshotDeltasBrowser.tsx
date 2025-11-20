@@ -176,8 +176,7 @@ const sortNodes = (nodes: DataNode[]): DataNode[] => {
 
 const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
   const parent = splitPath(nodePath);
-  const children: Record<string, DataNode & { __totals?: any, name:string }> = {};
-
+  const children: Record<string, DataNode & { __totals?: any, name:string, modifier?: string }> = {};
   for (const e of entries) {
     const parts = splitPath(e.path);
 
@@ -194,42 +193,52 @@ const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
     // Immediate child name
     if (parts.length > parent.length) {
       const name = parts[parent.length];
-      const fullPath = "/" + [...parent, name].join("/");
+      const isDirectory = e.path.endsWith('/')
+      const fullPath = "/" + [...parent, name].join("/")+ (isDirectory ? "/" : "");
+      const changesOnThisPath = entries.filter((a:DiffEntry)=> a.path.substring(0,fullPath.length) == fullPath).length;
+      const changed = entries.filter((a:DiffEntry)=> a.path == fullPath)?.length == 1 ;
 
       if (!children[name]) {
         children[name] = {
           key: fullPath,
           name: name,
           children: undefined,
-          isLeaf: parts.length === parent.length + 1, // file leaf
+          isLeaf: changesOnThisPath == 1 && !isDirectory,
+          modifier: changed ? e.modifier : "",
           __totals: { "modified": 0, "added": 0, "removed": 0 , "metadata": 0, "fileType": 0, "unknown":0 }
         };
       }
 
       switch (e.modifier)
-        { case("M"):  children[name].__totals.modified  = children[name].__totals.modified + 1; break;
-          case("-"):  children[name].__totals.removed   = children[name].__totals.removed  + 1; break;
-          case("+"):  children[name].__totals.added     = children[name].__totals.added + 1; break;
-          case("U"):  children[name].__totals.metadata  = children[name].__totals.metadata + 1; break;
-          case("T"):  children[name].__totals.fileType  = children[name].__totals.fileType + 1; break;
-          case("?"):  children[name].__totals.unknown   = children[name].__totals.unknown + 1; break;
+        { case("M"):  children[name].__totals.modified  = children[name].__totals.modified  + 1; break;
+          case("-"):  children[name].__totals.removed   = children[name].__totals.removed   + 1; break;
+          case("+"):  children[name].__totals.added     = children[name].__totals.added     + 1; break;
+          case("U"):  children[name].__totals.metadata  = children[name].__totals.metadata  + 1; break;
+          case("T"):  children[name].__totals.fileType  = children[name].__totals.fileType  + 1; break;
+          case("?"):  children[name].__totals.unknown   = children[name].__totals.unknown   + 1; break;
         }
     }
   }
 
   const nodes = Object.values(children).map(node => {
-    const { modified, added, removed,metadata,fileType,unknown } = node.__totals!;
+    //const { modified, added, removed,metadata,fileType,unknown } = node.__totals!;
 
     // Leaf → rename with single modifier
-    if (node.isLeaf) {
-      let suffix = null;
-      if (modified) suffix = colored("(modified)", "modified");
-      if (added) suffix = colored("(added)", "added");
-      if (removed) suffix = colored("(deleted)", "removed");
-      if (metadata) suffix = colored("(metadata)", "metadata");
-      if (fileType) suffix = colored("(type)", "fileType");
-      if (unknown) suffix = colored("(unknown)", "unknown");
+    // const total =   Object.values(node.__totals).reduce(
+    //   (sum: number, val) => sum + (Number(val) || 0),
+    //     0
+    //   );
 
+    let suffix = null;
+    switch (node.modifier)
+      { case("M"):  suffix  = colored("(modified)", "modified");break;
+        case("-"):  suffix  = colored("(deleted)", "removed"); break;
+        case("+"):  suffix  = colored("(added)", "added"); break;
+        case("U"):  suffix  = colored("(metadata)", "metadata"); break;
+        case("T"):  suffix  = colored("(type)", "fileType"); break;
+        case("?"):  suffix  = colored("(unknown)", "unknown"); break;
+      }
+    if (node.isLeaf) {
       return {
         ...node,
         title: (
@@ -239,16 +248,17 @@ const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
         )
       };
     }
-    // Folder → totals + color
-    const sufix = formatTotalsColor(node.__totals);
-    delete node.__totals;
-    return {
-      ...node,
-      title: (
-        <span>{node.name} {sufix}
-        </span>
-      )
-    };
+    else {
+      // Folder → totals + color
+      const totals = formatTotalsColor(node.__totals);
+      delete node.__totals;
+      return {
+        ...node,
+        title: (
+          <span>{node.name} <span className="backrest file-details">{suffix}</span> {totals}</span>
+        )
+      };
+    }
   });
 
   return sortNodes(nodes);
@@ -332,7 +342,8 @@ const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
             placeholder="Select previous snapshot"
             options={backups?.sort( (a,b)=> b.displayTime-a.displayTime).map(
               (v) => ({
-                label: (<span><span>{formatTime(v.displayTime)}</span> <span className="backrest file-details">(ID: {v.snapshotID.slice(0,8)} {formatDuration((performance.now() -v.displayTime)/10000, {minUnit:'d',maxUnit:'d'})} ago)</span> </span>),
+//                label: (<span><span>{formatTime(v.displayTime)}</span> <span className="backrest file-details">(ID: {v.snapshotID.slice(0,8)} {formatDuration((performance.now() -v.displayTime)/10000, {minUnit:'d',maxUnit:'d'})} ago)</span> </span>),
+                label: (<span><span>{formatTime(v.displayTime)}</span> <span className="backrest file-details">(ID: {v.snapshotID.slice(0,8)})</span> </span>),
                 value: v.snapshotID,
               })
               
