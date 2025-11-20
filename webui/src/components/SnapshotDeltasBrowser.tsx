@@ -146,21 +146,42 @@ export const SnapshotDeltasBrowser = ({
 }
 const formatTotalsColor = (totals: any) => {
   const parts: any[] = [];
+  const partsTooltip: any[] = [];
   if (totals["modified"])
+  {
     parts.push(colored(`${totals["modified"]}M`, "modified"));
+    partsTooltip.push(`${totals["modified"]} Modified`);
+  }
   if (totals["added"])
+  {
     parts.push(colored(`${totals["added"]}+`, "added"));
+    partsTooltip.push(`${totals["added"]} Added`);
+  }
   if (totals["removed"])
+  {
     parts.push(colored(`${totals["removed"]}-`, "removed"));
+    partsTooltip.push(`${totals["removed"]} Removed`);
+  }
   if (totals["metadata"])
+  {
     parts.push(colored(`${totals["metadata"]}MD`, "metadata"));
+    partsTooltip.push(`${totals["metadata"]} Metadata change(s)`);
+  }
   if (totals["fileType"])
+  {
     parts.push(colored(`${totals["fileType"]}T`, "fileType"));
+    partsTooltip.push(`${totals["fileType"]} File type change(s)`);
+  }
   if (totals["unknown"])
+  {
     parts.push(colored(`${totals["unknown"]}?`, "unknown"));
+    partsTooltip.push(`${totals["modified"]} Unknown change(s)`);
+  }
 
   if (!parts.length) return null;
-  return <span className="backrest file-details"> ({parts.reduce((acc, curr, i) => [...acc, i ? " " : null, curr], [])})</span>;
+  return <Tooltip title={partsTooltip.reduce((acc, curr, i) => [...acc, i ? " " : null, curr], [])}>
+            <span className="backrest file-details"> ({parts.reduce((acc, curr, i) => [...acc, i ? " " : null, curr], [])})</span>
+        </Tooltip>
 }
 
 const sortNodes = (nodes: DataNode[]): DataNode[] => {
@@ -232,16 +253,16 @@ const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
     let suffix = null;
     switch (node.modifier)
       { case("M"):  suffix  = colored("(modified)", "modified");break;
-        case("-"):  suffix  = colored("(deleted)", "removed"); break;
+        case("-"):  suffix  = colored("(removed)", "removed"); break;
         case("+"):  suffix  = colored("(added)", "added"); break;
-        case("U"):  suffix  = colored("(metadata)", "metadata"); break;
-        case("T"):  suffix  = colored("(type)", "fileType"); break;
-        case("?"):  suffix  = colored("(unknown)", "unknown"); break;
+        case("U"):  suffix  = colored("(metadata changed)", "metadata"); break;
+        case("T"):  suffix  = colored("(file type changed)", "fileType"); break;
+        case("?"):  suffix  = colored("(unknown change)", "unknown"); break;
       }
     if (node.isLeaf) {
       return {
         ...node,
-        title: (
+        title: ( 
           <span>{node.name}
             <span className="backrest file-details"> {suffix}</span>
           </span>
@@ -255,7 +276,7 @@ const getChildren = (entries: DiffEntry[], nodePath: string): DataNode[] =>{
       return {
         ...node,
         title: (
-          <span>{node.name} <span className="backrest file-details">{suffix}</span> {totals}</span>
+            <span>{node.name} <span className="backrest file-details">{suffix}</span> {totals}</span>
         )
       };
     }
